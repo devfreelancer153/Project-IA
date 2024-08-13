@@ -440,8 +440,17 @@ const AppDrawerDropdown: FC = function () {
     </Dropdown>
   );
 };
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const UserDropdown: FC = function () {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout(); 
+    navigate('/authentication/sign-in'); 
+  };
   return (
     <Dropdown
       arrowIcon={false}
@@ -468,7 +477,7 @@ const UserDropdown: FC = function () {
       <Dropdown.Item>Settings</Dropdown.Item>
       <Dropdown.Item>Earnings</Dropdown.Item>
       <Dropdown.Divider />
-      <Dropdown.Item>Sign out</Dropdown.Item>
+      <Dropdown.Item onClick={handleLogout} >Sign out</Dropdown.Item>
     </Dropdown>
   );
 };

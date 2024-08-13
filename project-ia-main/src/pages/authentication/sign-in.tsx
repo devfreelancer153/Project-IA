@@ -1,8 +1,44 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { Button, Card, Checkbox, Label, TextInput } from "flowbite-react";
-import type { FC } from "react";
+import type { FC, FormEvent } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "../../api/auth";
+import { useAuth } from "../../context/AuthContext"; 
 
 const SignInPage: FC = function () {
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const { login: setAuthLogin } = useAuth(); // Use a função login do contexto
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(""); // Clear any previous errors
+
+    try {
+      const data = await login(name, password);
+      console.log(data)
+
+      if (data.token) {
+        // Set authentication state in the context
+        setAuthLogin();
+
+        // Optionally save the token in localStorage
+        localStorage.setItem("authToken", data.token);
+
+        // Redirect to a protected route
+        navigate("/machines/list");
+      } else {
+        setError("Invalid login credentials. Please try again.");
+      }
+    } catch (error) {
+      setError("An error occurred. Please try again.");
+      console.log(error)
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center px-6 lg:h-screen lg:gap-y-12">
       <a href="/" className="my-6 flex items-center gap-x-1 lg:my-0">
@@ -16,26 +52,32 @@ const SignInPage: FC = function () {
         <h1 className="mb-3 text-2xl font-bold dark:text-white md:text-3xl">
           Sign in to platform
         </h1>
-        <form>
+        <form onSubmit={handleSubmit}>
           <div className="mb-4 flex flex-col gap-y-3">
-            <Label htmlFor="email">Your email</Label>
+          <Label htmlFor="name">Your name</Label>
             <TextInput
-              id="email"
-              name="email"
-              placeholder="name@company.com"
-              type="email"
+              id="name"
+              name="name"
+              placeholder="Enter your username"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
           </div>
           <div className="mb-6 flex flex-col gap-y-3">
-            <Label htmlFor="password">Your password</Label>
+          <Label htmlFor="password">Your password</Label>
             <TextInput
               id="password"
               name="password"
               placeholder="••••••••"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </div>
-          <div className="mb-6 flex items-center justify-between">
+          {/* <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-x-3">
               <Checkbox id="rememberMe" name="rememberMe" />
               <Label htmlFor="rememberMe">Remember me</Label>
@@ -46,7 +88,8 @@ const SignInPage: FC = function () {
             >
               Lost Password?
             </a>
-          </div>
+          </div> */}
+          {error && <p className="text-red-500">{error}</p>}
           <div className="mb-6">
             <Button type="submit" className="w-full lg:w-auto">
               Login to your account

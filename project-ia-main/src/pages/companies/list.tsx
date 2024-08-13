@@ -10,7 +10,7 @@ import {
   TextInput,
 } from "flowbite-react";
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState} from "react";
 import {
   HiChevronLeft,
   HiChevronRight,
@@ -25,6 +25,9 @@ import {
   HiTrash,
 } from "react-icons/hi";
 import NavbarSidebarLayout from "../../layouts/navbar-sidebar";
+import { postClient, getClient , putClient } from '../../api/clients'; 
+import { getMaquinas } from '../../api/machines'; 
+import { Cliente, Maquina } from '../../models/models';
 
 const UserListPage: FC = function () {
   return (
@@ -40,12 +43,12 @@ const UserListPage: FC = function () {
                 </div>
               </Breadcrumb.Item>
               <Breadcrumb.Item href="/companies/list">
-                Companies
+                Clientes
               </Breadcrumb.Item>
               <Breadcrumb.Item>List</Breadcrumb.Item>
             </Breadcrumb>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">
-              All Companies
+              Clientes
             </h1>
           </div>
           <div className="sm:flex">
@@ -67,14 +70,14 @@ const UserListPage: FC = function () {
                   href="#"
                   className="inline-flex cursor-pointer justify-center rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                 >
-                  <span className="sr-only">Configure</span>
+                  <span className="sr-only">Configurar</span>
                   <HiCog className="text-2xl" />
                 </a>
                 <a
                   href="#"
                   className="inline-flex cursor-pointer justify-center rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                 >
-                  <span className="sr-only">Delete</span>
+                  <span className="sr-only">Deletar</span>
                   <HiTrash className="text-2xl" />
                 </a>
                 <a
@@ -88,7 +91,7 @@ const UserListPage: FC = function () {
                   href="#"
                   className="inline-flex cursor-pointer justify-center rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
                 >
-                  <span className="sr-only">Settings</span>
+                  <span className="sr-only">Configurações</span>
                   <HiDotsVertical className="text-2xl" />
                 </a>
               </div>
@@ -98,7 +101,7 @@ const UserListPage: FC = function () {
               <Button color="gray">
                 <div className="flex items-center gap-x-3">
                   <HiDocumentDownload className="text-xl" />
-                  <span>Export</span>
+                  <span>Exportar</span>
                 </div>
               </Button>
             </div>
@@ -121,8 +124,25 @@ const UserListPage: FC = function () {
 
 const AddUserModal: FC = function () {
   const [isOpen, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [section, setSection] = useState("company");
+  const [error, setError] = useState(""); // Estado para mensagem de erro
 
-  const [, setSection] = useState("company");
+  // Função para adicionar uma nova empresa
+  const handleAddClient = async () => {
+
+    if (!name.trim() || !description.trim()) {
+      setError("Nome e Empresa não podem estar vazios.");
+      return;
+    }
+    try {
+      const response = await postClient(name, description);
+      setOpen(false); 
+    } catch (error) {
+      console.error('Error adding client:', error);
+    }
+  };
 
   const changeSection = (sectionName: string) => {
     setSection(sectionName);
@@ -132,36 +152,40 @@ const AddUserModal: FC = function () {
       <Button color="primary" onClick={() => setOpen(true)}>
         <div className="flex items-center gap-x-3">
           <HiPlus className="text-xl" />
-          Add Company
+          Adicionar Cliente
         </div>
       </Button>
       <Modal onClose={() => setOpen(false)} show={isOpen}>
         <Modal.Header className="border-b border-gray-200 !p-6 dark:border-gray-700">
-          <strong>Add New Company</strong>
+          <strong>Adicionar Novo Cliente</strong>
         </Modal.Header>
         <Modal.Body>
           <div className="mb-2">
-            <Label htmlFor="companyName">Name</Label>
+            <Label htmlFor="companyName">Nome</Label>
             <div className="mt-1">
               <TextInput
                 id="companyName"
                 name="companyName"
-                placeholder="Enter Company Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Escreva o nome do cliente"
               />
             </div>
           </div>
           <div className="mb-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Descrição</Label>
             <div className="mt-1">
               <Textarea
                 id="description"
-                placeholder="Write your description here"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Escreva a empresa aqui"
                 required
                 rows={4}
               />
             </div>
           </div>
-          <div className="mb-2">
+          {/* <div className="mb-2">
             <Label htmlFor="controller">Machines</Label>
             <div className="mt-1">
               <Button
@@ -169,14 +193,17 @@ const AddUserModal: FC = function () {
                 color="blue"
                 className="w-full secondary mb-2"
               >
-                Add Machine
+                Adicionar Maquina
               </Button>
             </div>
-          </div>
+          </div> */}
         </Modal.Body>
         <Modal.Footer>
-          <Button color="primary" onClick={() => setOpen(false)}>
-            Add Company
+        <Button color="primary" onClick={handleAddClient}>
+            Adicionar Cliente
+          </Button>
+          <Button color="gray" onClick={() => setOpen(false)}>
+            Cancelar
           </Button>
         </Modal.Footer>
       </Modal>
@@ -185,87 +212,142 @@ const AddUserModal: FC = function () {
 };
 
 const AllUsersTable: FC = function () {
+
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+  const [clientesComMaquinas, setClientesComMaquinas] = useState<{ cliente: Cliente; quantidadeMaquinas: number }[]>([]);
+
+  const fetchData = async () => {
+    try {
+      const clientesData = await getClient();
+      const maquinasData = await getMaquinas();
+      setClientes(clientesData); 
+      setMaquinas(maquinasData); 
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error);
+    }
+  };
+
+  const processData = () => {
+    const maquinasPorCliente = maquinas.reduce((acc: { [key: number]: number }, maquina) => {
+      acc[maquina.ClienteID] = (acc[maquina.ClienteID] || 0) + 1;
+      return acc;
+    }, {});
+
+    const clientesComQuantidadeMaquinas = clientes.map(cliente => ({
+      cliente,
+      quantidadeMaquinas: maquinasPorCliente[cliente.ID] || 0,
+    }));
+
+    setClientesComMaquinas(clientesComQuantidadeMaquinas);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (clientes.length && maquinas.length) {
+      processData();
+    }
+  }, [clientes, maquinas]);
+
   return (
     <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
       <Table.Head className="bg-gray-100 dark:bg-gray-700">
         <Table.HeadCell>
           <Label htmlFor="select-all" className="sr-only">
-            Select all
+            Selecionar todos
           </Label>
           <Checkbox id="select-all" name="select-all" />
         </Table.HeadCell>
-        <Table.HeadCell>Name</Table.HeadCell>
-        <Table.HeadCell>Machines</Table.HeadCell>
-        <Table.HeadCell>Actions</Table.HeadCell>
+        <Table.HeadCell>Nome</Table.HeadCell>
+        <Table.HeadCell>Qtd. de Máquinas</Table.HeadCell>
+        <Table.HeadCell>Ações</Table.HeadCell>
       </Table.Head>
       <Table.Body className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-        <Table.Row className="hover:bg-gray-100 dark:hover:bg-gray-700">
-          <Table.Cell className="w-4 p-4">
-            <div className="flex items-center">
-              <Checkbox aria-describedby="checkbox-1" id="checkbox-1" />
-              <label htmlFor="checkbox-1" className="sr-only">
-                checkbox
-              </label>
-            </div>
-          </Table.Cell>
-          <Table.Cell className="mr-12 flex items-center space-x-6 whitespace-nowrap p-4 lg:mr-0">
-            <div className="text-sm font-normal text-gray-500 dark:text-gray-400">
-              <div className="text-base font-semibold text-gray-900 dark:text-white">
-                Company Name
+        {clientesComMaquinas.map(({ cliente, quantidadeMaquinas }) => (
+          <Table.Row key={cliente.ID} className="hover:bg-gray-100 dark:hover:bg-gray-700">
+            <Table.Cell className="w-4 p-4">
+              <div className="flex items-center">
+                <Checkbox aria-describedby={`checkbox-${cliente.ID}`} id={`checkbox-${cliente.ID}`} />
+                <label htmlFor={`checkbox-${cliente.ID}`} className="sr-only">
+                  checkbox
+                </label>
               </div>
+            </Table.Cell>
+            <Table.Cell className="mr-12 flex items-center space-x-6 whitespace-nowrap p-4 lg:mr-0">
               <div className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                Company Description
+                <div className="text-base font-semibold text-gray-900 dark:text-white">
+                  {cliente.Name}
+                </div>
+                <div className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                  {cliente.Empresa}
+                </div>
               </div>
-            </div>
-          </Table.Cell>
-          <Table.Cell className="whitespace-nowrap p-4 text-base font-medium text-gray-900 dark:text-white">
-            Company Machines
-          </Table.Cell>
-
-          <Table.Cell>
-            <div className="flex items-center gap-x-3 whitespace-nowrap">
-              <EditUserModal />
+            </Table.Cell>
+            <Table.Cell className="whitespace-nowrap p-4 text-base font-medium text-gray-900 dark:text-white">
+              {quantidadeMaquinas}
+            </Table.Cell>
+            <Table.Cell>
+              <div className="flex items-center gap-x-3 whitespace-nowrap">
+              <EditUserModal  client={cliente} />
               <DeleteUserModal />
-            </div>
-          </Table.Cell>
-        </Table.Row>
+              </div>
+            </Table.Cell>
+          </Table.Row>
+        ))}
       </Table.Body>
     </Table>
   );
 };
 
-const EditUserModal: FC = function () {
+const EditUserModal: FC<{ client: Cliente;}> = function ({ client}) { = function () {
   const [isOpen, setOpen] = useState(false);
+  const [name, setName] = useState(client.Name);
+  const [description, setDescription] = useState(client.Empresa);
+
+  const handleSave = async () => {
+    try {
+      await putClient(client.ID, { Name: name, Empresa: description });
+
+      setOpen(false); // Fecha o modal
+    } catch (error) {
+      console.error("Failed to save client:", error);
+    }
+  };
 
   return (
     <>
       <Button color="primary" onClick={() => setOpen(true)}>
         <div className="flex items-center gap-x-2">
           <HiOutlinePencilAlt className="text-lg" />
-          Edit Company
+          Editar Cliente
         </div>
       </Button>
       <Modal onClose={() => setOpen(false)} show={isOpen}>
         <Modal.Header className="border-b border-gray-200 !p-6 dark:border-gray-700">
-          <strong>Edit Company</strong>
+          <strong>Editar Cliente</strong>
         </Modal.Header>
         <Modal.Body>
           <div className="mb-2">
-            <Label htmlFor="companyName">Name</Label>
+            <Label htmlFor="companyName">Nome</Label>
             <div className="mt-1">
               <TextInput
                 id="companyName"
                 name="companyName"
-                placeholder="Enter Company Name"
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nome"
               />
             </div>
           </div>
           <div className="mb-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Empresa</Label>
             <div className="mt-1">
               <Textarea
                 id="description"
-                placeholder="Write your description here"
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Escreva a empresa aqui"
                 required
                 rows={4}
               />
@@ -273,8 +355,8 @@ const EditUserModal: FC = function () {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button color="primary" onClick={() => setOpen(false)}>
-            Save all
+          <Button color="primary" onClick={handleSave}>
+            Salvar
           </Button>
         </Modal.Footer>
       </Modal>
